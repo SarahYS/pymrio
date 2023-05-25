@@ -11,6 +11,7 @@ import re
 import warnings
 import zipfile
 from collections import namedtuple
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -2007,7 +2008,8 @@ def parse_eora26(path, year=None, price="bp", country_names="eora"):
 
 def parse_gloria(path, satellite_path=None):
     """
-    Parse a GLORIA database and return an IOSystem object.
+    Parse a GLORIA database and return an IOSystem object. Expects either a directory 
+    or a zip archive with one year of gloria data inside.
 
     Args:
     path (str or Path): The path to the GLORIA database folder or ZIP archive.
@@ -2195,9 +2197,7 @@ def __get_gloria_csv_file_name(example_filename, matrix_type):
     Returns:
     str: The generated GLORIA CSV file name.
     """
-    # Split the example_filename by underscores
     f_split = example_filename.split("_")
-
     return f"{f_split[0]}_120secMother_AllCountries_002_{matrix_type}-Results_{f_split[-3]}_{f_split[-2]}_Markup001(full).csv"
 
 
