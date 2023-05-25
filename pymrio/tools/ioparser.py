@@ -2025,6 +2025,7 @@ def parse_gloria(path, satellite_path=None):
     Z_matrix = None
     Y_matrix = None
     VA_matrix = None
+    satellite = None
     metadata = __read_gloria_metadata()
 
     # Get year and version from path name
