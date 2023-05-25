@@ -2008,7 +2008,7 @@ def parse_eora26(path, year=None, price="bp", country_names="eora"):
 
 def parse_gloria(path, satellite_path=None):
     """
-    Parse a GLORIA database and return an IOSystem object. Expects either a directory 
+    Parse a GLORIA database and return an IOSystem object. Expects either a directory
     or a zip archive with one year of gloria data inside.
 
     Args:
@@ -2279,7 +2279,7 @@ def __read_gloria_metadata():
     """
     # Read metadata from Excel file into DataFrames
     metadata = pd.read_excel(
-        PYMRIO_PATH["gloria_metadata"],
+        PYMRIO_PATH["gloria_metadata"] / "metadata.xlsx",
         sheet_name=["Regions", "Sectors", "Value added and final demand", "Satellites"],
     )
     regions_df = metadata.get("Regions")
