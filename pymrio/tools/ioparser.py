@@ -2184,7 +2184,7 @@ def parse_gloria_satellite(satellite_path, metadata):
             is_satellite=True,
         )
 
-    return pymrio.Extension(name="Satellites", F=F_matrix, F_Y=F_Y_matrix)
+    return Extension(name="Satellites", F=F_matrix, F_Y=F_Y_matrix)
 
 
 def __get_gloria_csv_file_name(example_filename, matrix_type):
