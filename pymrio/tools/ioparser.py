@@ -2099,6 +2099,12 @@ def parse_gloria(path, satellite_path=None):
             num_sectors=metadata["num_sectors"],
             is_VA_matrix=True,
         )
+    else:
+        raise OSError(
+            path.name
+            + " is not a valid path. It should be either zip archive or a directory."
+        )
+
     extensions = {}
     # Create a Factor Input extension
     extensions["factor_input"] = {"name": "Factor Input", "F": VA_matrix}
@@ -2179,6 +2185,11 @@ def parse_gloria_satellite(satellite_path, metadata):
             column_index=metadata["Y_column_index"],
             chunksize=metadata["num_sectors"],
             is_satellite=True,
+        )
+    else:
+        raise OSError(
+            path.name
+            + " is not a valid path. It should be either zip archive or a directory."
         )
 
     return {"name": "Satellites", "F": F_matrix, "F_Y": F_Y_matrix}
