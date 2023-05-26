@@ -2025,7 +2025,6 @@ def parse_gloria(path, satellite_path=None):
     Z_matrix = None
     Y_matrix = None
     VA_matrix = None
-    satellite = None
     metadata = __read_gloria_metadata()
 
     # Get year and version from path name
@@ -2100,18 +2099,16 @@ def parse_gloria(path, satellite_path=None):
             num_sectors=metadata["num_sectors"],
             is_VA_matrix=True,
         )
-
+    extensions = {}
     # Create a Factor Input extension
-    factor_input = Extension(name="Factor Input", F=VA_matrix)
+    extensions["factor_input"] = {"name": "Factor Input", "F": VA_matrix}
 
     # If satellite_path is given, parse the satellite files and create a Satellites extension
     if satellite_path:
-        satellite = parse_gloria_satellite(satellite_path, metadata)
+        extensions["satellites"] = parse_gloria_satellite(satellite_path, metadata)
 
     # Return an IOSystem object containing the parsed GLORIA data
-    return IOSystem(
-        Z=Z_matrix, Y=Y_matrix, factor_input=factor_input, satellites=satellite
-    )
+    return IOSystem(Z=Z_matrix, Y=Y_matrix, **extensions)
 
 
 def parse_gloria_satellite(satellite_path, metadata):
@@ -2184,7 +2181,7 @@ def parse_gloria_satellite(satellite_path, metadata):
             is_satellite=True,
         )
 
-    return Extension(name="Satellites", F=F_matrix, F_Y=F_Y_matrix)
+    return {"name": "Satellites", "F": F_matrix, "F_Y": F_Y_matrix}
 
 
 def __get_gloria_csv_file_name(example_filename, matrix_type):
