@@ -2102,7 +2102,7 @@ def parse_gloria(path, satellite_path=None):
         )
 
     # Create a Factor Input extension
-    factor_input = pymrio.Extension(name="Factor Input", F=VA_matrix)
+    factor_input = Extension(name="Factor Input", F=VA_matrix)
 
     # If satellite_path is given, parse the satellite files and create a Satellites extension
     if satellite_path:
