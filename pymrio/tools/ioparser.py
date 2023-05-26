@@ -2129,7 +2129,7 @@ def parse_gloria_satellite(satellite_path, metadata):
     path = Path(satellite_path)
 
     F_matrix = None
-    F_F_Y_matrix = None
+    F_Y_matrix = None
 
     # If path is a ZIP file, read matrices from it
     if zipfile.is_zipfile(path):
