@@ -14,6 +14,7 @@ from collections import namedtuple
 
 import numpy as np
 import pandas as pd
+import scipy.sparse as sp
 
 import pymrio.tools.ioutil as ioutil
 
@@ -25,9 +26,9 @@ def calc_x(Z, Y):
 
     Parameters
     ----------
-    Z : pandas.DataFrame or numpy.array
+    Z : pandas.DataFrame, scipy sparse matrix or numpy.array
         Symmetric input output table (flows)
-    Y : pandas.DataFrame or numpy.array
+    Y : pandas.DataFrame, scipy sparse matrix  or numpy.array
         final demand with categories (1.order) for each country (2.order)
 
     Returns
@@ -37,7 +38,18 @@ def calc_x(Z, Y):
         The type is determined by the type of Z. If DataFrame index as Z
 
     """
-    x = np.reshape(np.sum(np.hstack((Z, Y)), 1), (-1, 1))
+    if pd.api.types.is_sparse(Z.dtypes[0]):
+        Z_summed = Z.sum(axis=1).to_frame()
+        x=pd.concat((Z_summed, Y), axis=1).sum(axis=1)
+        return pd.DataFrame(x, columns=["indout"])
+
+    if sp.issparse(Z):
+        Z_summed = Z.sum(axis=1).reshape((-1, 1))
+        return sp.hstack((Z_summed, Y)).sum(axis=1).reshape((-1, 1))
+
+    Z_summed = np.array(np.sum(Z, 1)).reshape(-1, 1)
+    x = np.reshape(np.sum(np.hstack((Z_summed, Y)), 1), (-1, 1))
+
     if type(Z) is pd.DataFrame:
         x = pd.DataFrame(x, index=Z.index, columns=["indout"])
     if type(x) is pd.Series:
@@ -133,7 +145,7 @@ def calc_A(Z, x):
     """
     if (type(x) is pd.DataFrame) or (type(x) is pd.Series):
         x = x.values
-    if (type(x) is not np.ndarray) and (x == 0):
+    if (type(x) is not np.ndarray and type(x) is not np.matrix) and (x == 0):
         recix = 0
     else:
         with warnings.catch_warnings():
@@ -147,7 +159,12 @@ def calc_A(Z, x):
     # Mathematical form - slow
     # return Z.dot(np.diagflat(recix))
     if type(Z) is pd.DataFrame:
-        return pd.DataFrame(Z.values * recix, index=Z.index, columns=Z.columns)
+        df = pd.DataFrame(Z.values * recix, index=Z.index, columns=Z.columns)
+        if pd.api.types.is_sparse(Z.dtypes[0]):
+            return df.astype(pd.SparseDtype("float", 0.0))
+        return df
+    elif sp.issparse(Z):
+        return Z.multiply(recix).tocsc()
     else:
         return Z * recix
 
@@ -411,6 +428,80 @@ def calc_accounts(S, L, Y):
         )
     Y_diag = ioutil.diagonalize_columns_to_sectors(Y)
     x_diag = L @ Y_diag
+
+    x_tot = x_diag.values.sum(1)
+
+    del Y_diag
+
+    D_cba = pd.DataFrame(S @ x_diag)
+
+    # D_pba = S.dot(np.diagflat(x_tot))
+    # faster broadcasted calculation:
+    # NB: D_pba columns might be different to D_cba columns if Y include "regions" which are not in the core. This happens for example for statistical discrepancy in the OECD tables. It is "theoretically" possible to calculate footprints for these "regions", but not PBA accounts.
+    D_pba = pd.DataFrame(
+        S.values * x_tot.reshape((1, -1)), index=S.index, columns=S.columns
+    )
+
+    # for the traded accounts set the domestic industry output to zero
+    x_trade = ioutil.set_dom_block(x_diag, value=0)
+    D_imp = pd.DataFrame(S @ x_trade)
+
+    x_exp = x_trade.sum(1).values
+
+    # D_exp = S.dot(np.diagflat(x_exp))
+    # faster broadcasted version:
+    D_exp = pd.DataFrame(
+        S.values * x_exp.reshape((1, -1)), index=S.index, columns=S.columns
+    )
+
+    return (D_cba, D_pba, D_imp, D_exp)
+
+
+def calc_accounts_new(S, A, Y):
+    """Calculate sector specific cba and pba based accounts, imp and exp accounts
+
+    This methos should be used as avoiding to calculate 
+    the inverse increases numerical stability.
+    
+    The total industry output x for the calculation
+    is recalculated from A and y
+
+    Parameters
+    ----------
+    A : pandas.DataFrame
+        Coefficient matrix
+    S : pandas.DataFrame
+        Direct impact coefficients
+    Y : pandas.DataFrame
+        Final demand: aggregated across categories or just one category, one
+        column per country. Shape: rows as L, Y with just region names
+
+    Returns
+    -------
+    Tuple
+        (D_cba, D_pba, D_imp, D_exp)
+
+        Format: D_row x L_col (=nr_countries*nr_sectors)
+
+        - D_cba        Footprint per sector and country
+        - D_pba      Total factur use per sector and country
+        - D_imp       Total global factor use to satisfy total final demand in
+                      the country per sector
+        - D_exp       Total factor use in one country to satisfy final demand
+                      in all other countries (per sector)
+    """
+    # diagonalize each sector block per country
+    # this results in a disaggregated y with final demand per country per
+    # sector in one column
+
+    if isinstance(Y.columns, pd.MultiIndex):
+        raise ValueError(
+            "Column index of Y can not be a MultiIndex - aggregate the columns"
+        )
+    Y_diag = ioutil.diagonalize_columns_to_sectors(Y)
+    
+    x_diag = np.linalg.solve(np.identity(A.shape[0])-A, Y_diag)
+    x_diag = pd.DataFrame(x_diag, index=Y_diag.index, columns=Y_diag.columns)
 
     x_tot = x_diag.values.sum(1)
 
