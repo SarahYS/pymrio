@@ -2285,15 +2285,12 @@ def __read_gloria_metadata():
         - 'satellites_row_index': An index for satellites.
         - 'satellites_row_units': The units for each satellite.
     """
-    # Read metadata from Excel file into DataFrames
-    metadata = pd.read_excel(
-        PYMRIO_PATH["gloria_metadata"] / "metadata.xlsx",
-        sheet_name=["Regions", "Sectors", "Value added and final demand", "Satellites"],
-    )
-    regions_df = metadata.get("Regions")
-    sectors_df = metadata.get("Sectors")
-    value_and_demand_df = metadata.get("Value added and final demand")
-    satellites_df = metadata.get("Satellites")
+    # Read metadata 
+    regions_df = pd.read_csv(PYMRIO_PATH["gloria_metadata"] /"Regions.csv")
+    sectors_df = pd.read_csv(PYMRIO_PATH["gloria_metadata"] /"Sectors.csv")
+    value_and_demand_df = pd.read_csv(PYMRIO_PATH["gloria_metadata"] /"Value_added_and_final_demand.csv")
+    satellites_df = pd.read_csv(PYMRIO_PATH["gloria_metadata"] /"Satellites.csv")
+    #valuations_df = pd.read_csv(PYMRIO_PATH["gloria_metadata"] /"Valuations.csv")
 
     # Store the number of items in each list
     num_regions = len(regions_df.index)
