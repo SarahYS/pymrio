@@ -2286,11 +2286,11 @@ def __read_gloria_metadata():
         - 'satellites_row_units': The units for each satellite.
     """
     # Read metadata 
-    regions_df = pd.read_csv(PYMRIO_PATH["gloria_metadata"] /"Regions.csv")
-    sectors_df = pd.read_csv(PYMRIO_PATH["gloria_metadata"] /"Sectors.csv")
-    value_and_demand_df = pd.read_csv(PYMRIO_PATH["gloria_metadata"] /"Value_added_and_final_demand.csv")
-    satellites_df = pd.read_csv(PYMRIO_PATH["gloria_metadata"] /"Satellites.csv")
-    #valuations_df = pd.read_csv(PYMRIO_PATH["gloria_metadata"] /"Valuations.csv")
+    regions_df = pd.read_csv(PYMRIO_PATH["gloria_metadata"] /"Regions.tsv", sep='\t')
+    sectors_df = pd.read_csv(PYMRIO_PATH["gloria_metadata"] /"Sectors.tsv", sep='\t')
+    value_and_demand_df = pd.read_csv(PYMRIO_PATH["gloria_metadata"] /"Value_added_and_final_demand.tsv", sep='\t')
+    satellites_df = pd.read_csv(PYMRIO_PATH["gloria_metadata"] /"Satellites.tsv", sep='\t')
+    #valuations_df = pd.read_csv(PYMRIO_PATH["gloria_metadata"] /"Valuations.tsv", sep='\t')
 
     # Store the number of items in each list
     num_regions = len(regions_df.index)
