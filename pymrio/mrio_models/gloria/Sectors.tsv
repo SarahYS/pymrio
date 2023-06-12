@@ -4,15 +4,15 @@ Lfd_Nr	Sector_names
 3	Growing cereals n.e.c
 4	Growing leguminous crops and oil seeds
 5	Growing rice
-6	"Growing vegetables	 roots	 tubers"
+6	"Growing vegetables, roots, tubers"
 7	Growing sugar beet and cane
 8	Growing tobacco
 9	Growing fibre crops
 10	Growing crops n.e.c.
 11	Growing grapes
 12	Growing fruits and nuts
-13	"Growing beverage crops (coffee	 tea etc)"
-14	"Growing spices	 aromatic	 drug and pharmaceutical crops"
+13	"Growing beverage crops (coffee, tea etc)"
+14	"Growing spices, aromatic, drug and pharmaceutical crops"
 15	Seeds and plant propagation
 16	Raising of cattle
 17	Raising of sheep
@@ -35,7 +35,7 @@ Lfd_Nr	Sector_names
 34	Nickel ores
 35	Tin ores
 36	Other non-ferrous ores
-37	"Quarrying of stone	 sand and clay"
+37	"Quarrying of stone, sand and clay"
 38	Chemical and fertilizer minerals
 39	Extraction of salt
 40	Mining and quarrying n.e.c.; services to mining
@@ -49,7 +49,7 @@ Lfd_Nr	Sector_names
 48	Vegetable products
 49	Fruit products
 50	Food products and feeds n.e.c.
-51	"Sugar refining; cocoa	 chocolate and confectionery"
+51	"Sugar refining; cocoa, chocolate and confectionery"
 52	Animal oils and fats
 53	Vegetable oils and fats
 54	Dairy products
@@ -68,12 +68,12 @@ Lfd_Nr	Sector_names
 67	Basic inorganic chemicals
 68	Basic organic chemicals
 69	Pharmaceuticals and medicinal products
-70	"Dyes	 paints	 glues	 detergents and other chemical products"
+70	"Dyes, paints, glues, detergents and other chemical products"
 71	Rubber products
 72	Plastic products
 73	Clay building materials
 74	Other ceramics n.e.c.
-75	"Cement	 lime and plaster products"
+75	"Cement, lime and plaster products"
 76	Other non-metallic mineral products n.e.c.
 77	Basic iron and steel
 78	Basic aluminium
@@ -85,16 +85,16 @@ Lfd_Nr	Sector_names
 84	Basic non-ferrous metals n.e.c.
 85	Fabricated metal products
 86	Machinery and equipment
-87	"Motor vehicles	 trailers and semi-trailers"
+87	"Motor vehicles, trailers and semi-trailers"
 88	Other transport equipment
 89	Repair and installation of machinery and equipment
 90	Computers; electronic products; optical and precision instruments
 91	Electrical equipment
 92	Furniture and other manufacturing n.e.c
-93	"Electric power generation	 transmission and distribution"
+93	"Electric power generation, transmission and distribution"
 94	Distribution of gaseous fuels through mains
-95	"Water collection	 treatment and supply; sewerage"
-96	"Waste collection	 treatment	 and disposal"
+95	"Water collection, treatment and supply; sewerage"
+96	"Waste collection, treatment, and disposal"
 97	Materials recovery
 98	Building construction
 99	Civil engineering construction
@@ -112,10 +112,10 @@ Lfd_Nr	Sector_names
 111	Information services
 112	Finance and insurance
 113	Property and real estate
-114	"Professional	 scientific and technical services"
+114	"Professional, scientific and technical services"
 115	Administrative services
 116	Government; social security; defence; public order
 117	Education
 118	Human health and social work activities
-119	"Arts	 entertainment and recreation"
+119	"Arts, entertainment and recreation"
 120	Other services
