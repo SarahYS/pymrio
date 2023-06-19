@@ -460,7 +460,7 @@ def calc_accounts(S, L, Y):
 def calc_accounts_new(S, A, Y):
     """Calculate sector specific cba and pba based accounts, imp and exp accounts
 
-    This methos should be used as avoiding to calculate 
+    This method should be used as avoiding to calculate 
     the inverse increases numerical stability.
     
     The total industry output x for the calculation
