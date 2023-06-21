@@ -1882,7 +1882,7 @@ def __get_WIOD_SEA_extension(root_path, year, version, data_sheet="DATA"):
 def parse_oecd(path, year=None):
     """Parse the OECD ICIO tables
 
-    This function works for the 2016, 2018, ad 2021 releases.
+    This function works for the 2016, 2018, and 2021 releases.
     The OECd webpage provides the data as csv files in zip compressed
     archives. This function works with both, the compressed archives
     and the unpacked csv files.
