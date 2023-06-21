@@ -262,7 +262,8 @@ def diagonalize_columns_to_sectors(
          (all letters are index or header)
             A B     A A A B B B
                     x y z x y z
-        A x 3 1     3 0 0 1 0 0
+        A x 3 1     3 0 0 1 
+        0 0
         A y 4 2     0 4 0 0 2 0
         A z 5 3     0 0 5 0 0 3
         B x 6 9     6 0 0 9 0 0
