@@ -1882,7 +1882,7 @@ def __get_WIOD_SEA_extension(root_path, year, version, data_sheet="DATA"):
 def parse_oecd(path, year=None):
     """Parse the OECD ICIO tables
 
-    This function works for both, the 2016 and 2018 release.
+    This function works for the 2016, 2018, and 2021 releases.
     The OECd webpage provides the data as csv files in zip compressed
     archives. This function works with both, the compressed archives
     and the unpacked csv files.
@@ -1897,6 +1897,10 @@ def parse_oecd(path, year=None):
 
     II) If a given storage folder contains both releases, the datafile
     must be specified in the 'path' parameter.
+
+    II) Sectors are given with codes (e.g. 01T02, 53) which are mapped from
+    the OECD's metadata file (Country_Industry tab). Similarly the codes for demand items 
+    can be found in the metadata (Structure tab). 
 
     Parameters
     ----------
@@ -2016,8 +2020,66 @@ def parse_oecd(path, year=None):
     Z_index = pd.MultiIndex.from_tuples(tuple(ll) for ll in Z.index.str.split("_"))
     Z_columns = Z_index.copy()
     Z_index.names = IDX_NAMES["Z_row"]
+
+
+    # Make names human readable not codes
+    # Hard coded in May 2023 
+    # Do as excel solution
+    sectors = ["Agriculture, hunting, forestry",
+                      "Fishing and aquaculture",
+                       "Mining and quarrying, energy producing products",
+                        "Mining and quarrying, non-energy producing products",
+                        "Mining support service activities",
+                        "Food products, beverages and tobacco",
+                        "Textiles, textile products, leather and footwear",
+                        "Wood and products of wood and cork",
+                        "Paper products and printing",
+                        "Coke and refined petroleum products",
+                        "Chemical and chemical products",
+                        "Pharmaceuticals, medicinal chemical and botanical products",
+                        "Rubber and plastics products",
+                        "Other non-metallic mineral products",
+                        "Basic metals",
+                        "Fabricated metal products",
+                        "Computer, electronic and optical equipment",
+                        "Electrical equipment",
+                        "Machinery and equipment, nec",
+                        "Motor vehicles, trailers and semi-trailers",
+                        "Other transport equipment",
+                        "Manufacturing nec; repair and installation of machinery and equipment",
+                        "Electricity, gas, steam and air conditioning supply",
+                        "Water supply; sewerage, waste management and remediation activities",
+                        "Construction",
+                        "Wholesale and retail trade; repair of motor vehicles",
+                        "Land transport and transport via pipelines",
+                        "Water transport",
+                        "Air transport",
+                        "Warehousing and support activities for transportation",
+                        "Postal and courier activities",
+                        "Accommodation and food service activities",
+                        "Publishing, audiovisual and broadcasting activities",
+                        "Telecommunications",
+                        "IT and other information services",
+                        "Financial and insurance activities",
+                        "Real estate activities",
+                        "Professional, scientific and technical activities",
+                        "Administrative and support services",
+                        "Public administration and defence; compulsory social security",
+                        "Education",
+                        "Human health and social work activities",
+                        "Arts, entertainment and recreation",
+                        "Other service activities",
+                        "Activities of households as employers; undifferentiated goods- and services-producing activities of households for own use"
+                       ] 
+    
+    Z_columns = Z_index.copy()
+    Z_columns = Z_columns.set_levels(sectors, level=1)
+    Z_index.names = IDX_NAMES["Z_row"]
     Z_columns.names = IDX_NAMES["Z_col"]
+    Z_index = Z_index.set_levels(sectors, level=1)
+
     Z.index = Z_index
+
     Z.columns = Z_columns
 
     _midx = []
@@ -2032,12 +2094,25 @@ def parse_oecd(path, year=None):
         _midx.append(tuple(entries))
     Y.columns = pd.MultiIndex.from_tuples(_midx)
     Y.columns.names = IDX_NAMES["Y_col2"]
-    Y.index = Z.index
 
+#renaming categories to be human readable
+#Hard coded in May 2023 - found in README, structure tab
+    categories = ["Household Final Consumption Expenditure",
+              "Non-Profit Institutions Serving Households",
+              "General Government Final Consumption",
+              "Gross Fixed Capital Formation",
+              "Changes in Inventories and Valuables",
+              "Direct purchases abroad by residents"] 
+
+
+
+    Y.index = Z.index
+    Y.columns = Y.columns.set_levels(categories, level=1)
     F_factor_input.columns = Z.columns
     F_factor_input.index.names = IDX_NAMES["VA_row_single"]
     F_Y_factor_input.columns = Y.columns
     F_Y_factor_input.index = F_factor_input.index
+    F_Y_factor_input.columns = F_Y_factor_input.columns.set_levels(sectors, level=1)
 
     # Aggregation of CN and MX subregions
     core_co_names = Z.columns.get_level_values("region").unique()
@@ -2082,6 +2157,21 @@ def parse_oecd(path, year=None):
     F_unit = pd.DataFrame(
         index=F_factor_input.index, data=mon_unit, columns=IDX_NAMES["unit"]
     )
+    # factor inputs less subsidies for Z 
+    tls = F_factor_input.iloc[:-1]
+    sums = tls.sum(axis = 0)
+    F_factor_input[:1] = sums
+    F_factor_input.rename(index={'AUS_TAXSUB': 'tls'}, inplace=True)
+    F_Z = F_factor_input.iloc[[0, -1]]
+    
+
+    # factor inputs for Y
+    tls_y_raw = final_demand.iloc[-68:].copy()
+    sums_y = tls_y_raw.sum(axis = 0)
+    F_Y_factor_input[:1] = sums_y
+    F_Y_factor_input.rename(index={'AUS_TAXSUB': 'tls'}, inplace=True)
+    F_Y = F_Y_factor_input.iloc[[0, -1]]
+
 
     oecd = IOSystem(
         Z=Z,
@@ -2091,16 +2181,87 @@ def parse_oecd(path, year=None):
         factor_inputs={
             "name": "factor_inputs",
             "unit": F_unit,
-            "F": F_factor_input,
-            "F_Y": F_Y_factor_input,
+            "F": F_Z,
+            "F_Y": F_Y,
         },
     )
 
     return oecd
 
 
+def __get_oecd_env_extension(root_path, version_year, io_table_year):
 
+    """Parse the OECD CO2 embodied in production data
 
+    This function works for the 2021 release.
+    The OECd webpage provides the data as a csv file; all years can be downloaded in one file. 
+
+    Note
+    ----
+    Parameters
+    ----------
+    root_path: str or pathlib.Path
+        Either the full path to the CO2 embodied in production table downloaded from the OECD. 
+
+    version_year: str or int, optional
+        Needs to be 2021 for parser to work, else a parse error wil be shown.
+    
+    io_table_year: float64  
+        This function handles one specific year to be specified. 
+
+    Returns
+    -------
+    CO2 embodied in production as an extion to OECD MRIO as multindex df
+
+    Raises
+    ------
+    ParserError
+        If the file to parse could not be definitely identified.
+
+    """
+
+# This function can only handle the CO2 extension data from the 2021 version
+    if version_year == 2021:
+        raw_ext = pd.read_csv(root_path)
+    else:
+        raise ParserError("Environmental extension is only available for 2021")
+    
+    year_ext = raw_ext.loc[raw_ext["Time"] == io_table_year]
+
+# Clean up df for reshaping 
+    ext_clean = year_ext[["COU", "Industry", "Time", "Value"]]
+# only want logical regions (not world, oecd and other non logical rows)
+    regions = ["ARG", 'AUS', 'AUT', 'BEL', 'BGR', 'BRA', 'BRN', 'CAN', 'CHE', 'CHL',
+       'CHN', 'COL', 'CRI', 'CYP', 'CZE', 'DEU', 'DNK', 'ESP', 'EST', 'FIN',
+       'FRA', 'GBR', 'GRC', 'HKG', 'HRV', 'HUN', 'IDN', 'IND', 'IRL', 'ISL',
+       'ISR', 'ITA', 'JPN', 'KAZ', 'KHM', 'KOR', 'LAO', 'LTU', 'LUX', 'LVA',
+       'MAR', 'MEX', 'MLT', 'MMR', 'MYS', 'NLD', 'NOR', 'NZL', 'PER', 'PHL',
+       'POL', 'PRT', 'ROU', 'ROW', 'RUS', 'SAU', 'SGP', 'SVK', 'SVN', 'SWE',
+       'THA', 'TUN', 'TUR', 'TWN', 'USA', 'VNM', 'ZAF']
+    ext_clean = ext_clean[ext_clean['COU'].isin(regions)].copy()
+# Drop TOTAL Industry - can use for checking
+    industries =  ['Agriculture, hunting, forestry', 'Fishing and aquaculture', 'Mining and quarrying, energy producing products', 
+                   "Mining and quarrying, non-energy producing products", 'Mining support service activities', 'Food products, beverages and tobacco', 
+                   'Textiles, textile products, leather and footwear', 'Wood and products of wood and cork', 'Paper products and printing', 
+                   'Coke and refined petroleum products', 'Chemical and chemical products', 'Pharmaceuticals, medicinal chemical and botanical products',
+                    'Rubber and plastics products', 'Other non-metallic mineral products', 'Basic metals', 'Fabricated metal products', 
+                    'Computer, electronic and optical equipment', 'Electrical equipment', 'Machinery and equipment, nec', 'Motor vehicles, trailers and semi-trailers', 
+                    'Other transport equipment', 'Manufacturing nec; repair and installation of machinery and equipment', 'Electricity, gas, steam and air conditioning supply',
+                    'Water supply; sewerage, waste management and remediation activities', 'Construction', 
+                    'Wholesale and retail trade; repair of motor vehicles', 'Land transport and transport via pipelines', 'Water transport', 'Air transport',
+                    'Warehousing and support activities for transportation', 'Postal and courier activities', 'Accommodation and food service activities', 
+                    'Publishing, audiovisual and broadcasting activities', 'Telecommunications', 'IT and other information services', 'Financial and insurance activities', 
+                    'Real estate activities', 'Professional, scientific and technical activities', 'Administrative and support services', 
+                    'Public administration and defence; compulsory social security', 'Education', 'Human health and social work activities', 'Arts, entertainment and recreation', 'Other service activities', 
+                    'Activities of households as employers; undifferentiated goods- and services-producing activities of households for own use']
+
+# From long to wide df
+    ext_clean = ext_clean[ext_clean['Industry'].isin(industries)].copy()
+    ext_clean.drop("Time", axis =1, inplace=True)
+    ext_clean.rename(columns={"COU":"region", "Industry":"sector"}, inplace=True)
+    wide_df = ext_clean.set_index(['region', "sector"]).T
+
+    return wide_df
 
 
 
