@@ -2158,6 +2158,8 @@ def parse_oecd(path, year=None):
         index=F_factor_input.index, data=mon_unit, columns=IDX_NAMES["unit"]
     )
     # factor inputs less subsidies for Z 
+    # calculate sums of taxes least subsidies per country 
+    # final result is one row of numbers in a multindex
     tls = F_factor_input.iloc[:-1]
     sums = tls.sum(axis = 0)
     F_factor_input[:1] = sums
@@ -2227,9 +2229,11 @@ def __get_oecd_env_extension(root_path, version_year, io_table_year):
         raise ParserError("Environmental extension is only available for 2021")
     
     year_ext = raw_ext.loc[raw_ext["Time"] == io_table_year]
-
+ 
 # Clean up df for reshaping 
     ext_clean = year_ext[["COU", "Industry", "Time", "Value"]]
+    ext_clean.rename(columns={"COU":"region", "Industry":"sector"}, inplace=True)
+
 # only want logical regions (not world, oecd and other non logical rows)
     regions = ["ARG", 'AUS', 'AUT', 'BEL', 'BGR', 'BRA', 'BRN', 'CAN', 'CHE', 'CHL',
        'CHN', 'COL', 'CRI', 'CYP', 'CZE', 'DEU', 'DNK', 'ESP', 'EST', 'FIN',
@@ -2238,7 +2242,7 @@ def __get_oecd_env_extension(root_path, version_year, io_table_year):
        'MAR', 'MEX', 'MLT', 'MMR', 'MYS', 'NLD', 'NOR', 'NZL', 'PER', 'PHL',
        'POL', 'PRT', 'ROU', 'ROW', 'RUS', 'SAU', 'SGP', 'SVK', 'SVN', 'SWE',
        'THA', 'TUN', 'TUR', 'TWN', 'USA', 'VNM', 'ZAF']
-    ext_clean = ext_clean[ext_clean['COU'].isin(regions)].copy()
+    ext_clean = ext_clean[ext_clean['region'].isin(regions)]
 # Drop TOTAL Industry - can use for checking
     industries =  ['Agriculture, hunting, forestry', 'Fishing and aquaculture', 'Mining and quarrying, energy producing products', 
                    "Mining and quarrying, non-energy producing products", 'Mining support service activities', 'Food products, beverages and tobacco', 
@@ -2256,9 +2260,8 @@ def __get_oecd_env_extension(root_path, version_year, io_table_year):
                     'Activities of households as employers; undifferentiated goods- and services-producing activities of households for own use']
 
 # From long to wide df
-    ext_clean = ext_clean[ext_clean['Industry'].isin(industries)].copy()
+    ext_clean = ext_clean[ext_clean['sector'].isin(industries)]
     ext_clean.drop("Time", axis =1, inplace=True)
-    ext_clean.rename(columns={"COU":"region", "Industry":"sector"}, inplace=True)
     wide_df = ext_clean.set_index(['region', "sector"]).T
 
     return wide_df
