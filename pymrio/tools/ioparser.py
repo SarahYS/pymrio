@@ -11,6 +11,7 @@ import re
 import warnings
 import zipfile
 from collections import namedtuple
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -1109,12 +1110,12 @@ def parse_wiod(path, version, year=None, names=("isic", "c_codes"), popvector=No
                 "(either specify a specific file "
                 "or a path and year)"
             )
-        #year_two_digit = str(year)[-2:]
+        # year_two_digit = str(year)[-2:]
         wiot_file_list = [
             fl
             for fl in os.listdir(path)
             if (
-                fl[:end_character].upper()  == wiot_start.upper() + year_correct_digit
+                fl[:end_character].upper() == wiot_start.upper() + year_correct_digit
                 and os.path.splitext(fl)[1] == wiot_ext
             )
         ]
@@ -1155,7 +1156,7 @@ def parse_wiod(path, version, year=None, names=("isic", "c_codes"), popvector=No
         "c_code": 3,
     }
     wiot_empty_top_rows = [0, 1]
-    
+
     if version == 2016:
         wiot_marks = {  # special marks
             "last_interindsec": "r56",  # last sector of the interindustry
@@ -1320,7 +1321,7 @@ def parse_wiod(path, version, year=None, names=("isic", "c_codes"), popvector=No
 
     # SEA extension
     _F_sea_data, _F_sea_unit = __get_WIOD_SEA_extension(
-        root_path=root_path, year=wiot_year, version = version
+        root_path=root_path, year=wiot_year, version=version
     )
     if _F_sea_data is not None:
         # None if no SEA file present
@@ -1827,7 +1828,7 @@ def __get_WIOD_SEA_extension(root_path, year, version, data_sheet="DATA"):
         # get useful data (employment)
         if version == 2013:
             mt_sea = ["EMP", "EMPE", "H_EMP", "H_EMPE"]
-            data_unit=[  # this data must be in the same order as mt_sea
+            data_unit = [  # this data must be in the same order as mt_sea
                 "thousand persons",
                 "thousand persons",
                 "mill hours",
@@ -1835,7 +1836,7 @@ def __get_WIOD_SEA_extension(root_path, year, version, data_sheet="DATA"):
             ]
         elif version == 2016:
             mt_sea = ["EMP", "EMPE", "H_EMPE"]
-            data_unit=[  # this data must be in the same order as mt_sea
+            data_unit = [  # this data must be in the same order as mt_sea
                 "thousand persons",
                 "thousand persons",
                 "mill hours",
@@ -2523,3 +2524,351 @@ def parse_eora26(path, year=None, price="bp", country_names="eora"):
     )
 
     return eora
+
+
+def parse_gloria(path, satellite_path=None):
+    """
+    Parse a GLORIA database and return an IOSystem object. Expects either a directory
+    or a zip archive with one year of gloria data inside.
+
+    Args:
+    path (str or Path): The path to the GLORIA database folder or ZIP archive.
+    satellite_path (str or Path, optional): The path to the GLORIA satellite folder or ZIP archive.
+
+    Returns:
+    pymrio.IOSystem: An IOSystem object containing the parsed GLORIA data.
+    """
+    # Convert path to Path object
+    path = Path(path)
+
+    # Initialize variables
+    Z_matrix = None
+    Y_matrix = None
+    VA_matrix = None
+    metadata = __read_gloria_metadata()
+
+    # Get year and version from path name
+    year = path.name.split("_")[-1]
+    version = path.name.split("_")[-2]
+
+    # If path is a ZIP file, read matrices from it
+    if zipfile.is_zipfile(path):
+        with zipfile.ZipFile(path) as archive:
+            # Get file names for CSV files
+            Z_file_name = __get_gloria_csv_file_name(archive.namelist()[0], "T")
+            Y_file_name = __get_gloria_csv_file_name(archive.namelist()[0], "Y")
+            VA_file_name = __get_gloria_csv_file_name(archive.namelist()[0], "V")
+            # Read Z matrix from ZIP file
+            with archive.open(Z_file_name) as z_file:
+                Z_matrix = __read_gloria_csv_file(
+                    z_file,
+                    row_index=metadata["full_index"],
+                    column_index=metadata["full_index"],
+                    usecols=metadata["Z_usecols"],
+                    chunksize=metadata["num_sectors"],
+                )
+            # Read Y matrix from ZIP file
+            with archive.open(Y_file_name) as y_file:
+                Y_matrix = __read_gloria_csv_file(
+                    y_file,
+                    row_index=metadata["full_index"],
+                    column_index=metadata["Y_column_index"],
+                    chunksize=metadata["num_sectors"],
+                )
+            # Read VA matrix from ZIP file
+            with archive.open(VA_file_name) as f_file:
+                VA_matrix = __read_gloria_csv_file(
+                    f_file,
+                    row_index=metadata["VA_row_index"],
+                    column_index=metadata["full_index"],
+                    usecols=metadata["Z_usecols"],
+                    chunksize=len(metadata["VA_row_index"]),
+                    num_sectors=metadata["num_sectors"],
+                    is_VA_matrix=True,
+                )
+
+    # If path is a directory, read matrices from CSV files in it
+    elif path.is_dir():
+        # Get file names for CSV files
+        example_file_name = list(path.glob("*.csv"))[0].name
+        Z_file_name = path / __get_gloria_csv_file_name(example_file_name, "T")
+        Y_file_name = path / __get_gloria_csv_file_name(example_file_name, "Y")
+        VA_file_name = path / __get_gloria_csv_file_name(example_file_name, "V")
+        # Read Z matrix from CSV file
+        Z_matrix = __read_gloria_csv_file(
+            Z_file_name,
+            row_index=metadata["full_index"],
+            column_index=metadata["full_index"],
+            usecols=metadata["Z_usecols"],
+            chunksize=metadata["num_sectors"],
+        )
+        # Read Y matrix from CSV file
+        Y_matrix = __read_gloria_csv_file(
+            Y_file_name,
+            row_index=metadata["full_index"],
+            column_index=metadata["Y_column_index"],
+            chunksize=metadata["num_sectors"],
+        )
+        # Read VA matrix from CSV file
+        VA_matrix = __read_gloria_csv_file(
+            VA_file_name,
+            row_index=metadata["VA_row_index"],
+            column_index=metadata["full_index"],
+            usecols=metadata["Z_usecols"],
+            chunksize=len(metadata["VA_row_index"]),
+            num_sectors=metadata["num_sectors"],
+            is_VA_matrix=True,
+        )
+    else:
+        raise OSError(
+            path.name
+            + " is not a valid path. It should be either zip archive or a directory."
+        )
+
+    extensions = {}
+    # Create a Factor Input extension
+    extensions["factor_input"] = {"name": "Factor Input", "F": VA_matrix}
+
+    # If satellite_path is given, parse the satellite files and create a Satellites extension
+    if satellite_path:
+        extensions["satellites"] = parse_gloria_satellite(satellite_path, metadata)
+
+    # Return an IOSystem object containing the parsed GLORIA data
+    return IOSystem(Z=Z_matrix, Y=Y_matrix, **extensions)
+
+
+def parse_gloria_satellite(satellite_path, metadata):
+    """
+    Parse a GLORIA satellite file and return an Extension object.
+
+    Args:
+    satellite_path (str or Path): The path to the satellite file or directory.
+    metadata (dict): A dictionary containing various metadata.
+
+    Returns:
+    pymrio.Extension: An Extension object containing the parsed satellite data.
+    """
+    # Convert path to Path object
+    path = Path(satellite_path)
+
+    F_matrix = None
+    F_Y_matrix = None
+
+    # If path is a ZIP file, read matrices from it
+    if zipfile.is_zipfile(path):
+        with zipfile.ZipFile(path) as archive:
+            # Get file names for CSV files
+            F_file_name = __get_gloria_csv_file_name(archive.namelist()[0], "TQ")
+            F_Y_file_name = __get_gloria_csv_file_name(archive.namelist()[0], "YQ")
+            # Read F matrix from ZIP file
+            with archive.open(F_file_name) as z_file:
+                F_matrix = __read_gloria_csv_file(
+                    z_file,
+                    row_index=metadata["satellites_row_index"],
+                    column_index=metadata["full_index"],
+                    usecols=metadata["Z_usecols"],
+                    chunksize=metadata["num_sectors"],
+                    is_satellite=True,
+                )
+            # Read F_Y matrix from ZIP file
+            with archive.open(F_Y_file_name) as y_file:
+                F_Y_matrix = __read_gloria_csv_file(
+                    y_file,
+                    row_index=metadata["satellites_row_index"],
+                    column_index=metadata["Y_column_index"],
+                    chunksize=metadata["num_sectors"],
+                    is_satellite=True,
+                )
+
+    # If path is a directory, read matrices from CSV files in it
+    elif path.is_dir():
+        # Get file names for CSV files
+        F_file_name = path / __get_gloria_csv_file_name(
+            list(path.glob("*.csv"))[0].name, "TQ"
+        )
+        F_Y_file_name = path / __get_gloria_csv_file_name(
+            list(path.glob("*.csv"))[0].name, "YQ"
+        )
+        # Read F matrix from CSV file
+        F_matrix = __read_gloria_csv_file(
+            F_file_name,
+            row_index=metadata["satellites_row_index"],
+            column_index=metadata["full_index"],
+            usecols=metadata["Z_usecols"],
+            chunksize=metadata["num_sectors"],
+            is_satellite=True,
+        )
+        # Read F_Y matrix from CSV file
+        F_Y_matrix = __read_gloria_csv_file(
+            F_Y_file_name,
+            row_index=metadata["satellites_row_index"],
+            column_index=metadata["Y_column_index"],
+            chunksize=metadata["num_sectors"],
+            is_satellite=True,
+        )
+    else:
+        raise OSError(
+            path.name
+            + " is not a valid path. It should be either zip archive or a directory."
+        )
+
+    return {"name": "Satellites", "F": F_matrix, "F_Y": F_Y_matrix}
+
+
+def __get_gloria_csv_file_name(example_filename, matrix_type):
+    """
+    Generate a GLORIA CSV file name based on the given example_filename and matrix_type.
+
+    Args:
+    example_filename (str): The example filename to use as a template.
+    matrix_type (str): The matrix type (e.g., "Z", "Y", "VA", or "S").
+
+    Returns:
+    str: The generated GLORIA CSV file name.
+    """
+    f_split = example_filename.split("_")
+    return f"{f_split[0]}_120secMother_AllCountries_002_{matrix_type}-Results_{f_split[-3]}_{f_split[-2]}_Markup001(full).csv"
+
+
+def __read_gloria_csv_file(
+    file,
+    row_index,
+    column_index,
+    chunksize,
+    usecols=None,
+    num_sectors=None,
+    is_VA_matrix=False,
+    is_satellite=False,
+):
+    """
+    Read a GLORIA CSV file and return a DataFrame with specified row and column indices.
+
+    Args:
+    file (str): The file path to the GLORIA CSV file.
+    row_index (pd.MultiIndex): The row index for the resulting DataFrame.
+    column_index (pd.MultiIndex): The column index for the resulting DataFrame.
+    chunksize (int): The number of rows to read at a time.
+    usecols (List[int], optional): The columns to read from the CSV file. Defaults to None.
+    num_sectors (int, optional): The number of sectors. Defaults to None.
+    is_VA_matrix (bool, optional): Whether the file is a VA matrix. Defaults to False.
+    is_satellite (bool, optional): Whether the file is a satellite matrix. Defaults to False.
+
+    Returns:
+    pd.DataFrame: The resulting DataFrame with specified row and column indices.
+    """
+    chunk_list = []
+    df = None
+
+    # The VA matrix has to be handled separately to correctly collapse rows
+    if is_VA_matrix:
+        with pd.read_csv(file, header=None, chunksize=chunksize) as reader:
+            for i, chunk in enumerate(reader):
+                chunk.reset_index(drop=True, inplace=True)
+                # Append the specified columns to the chunk list
+                chunk_list.append(
+                    chunk.iloc[
+                        :, usecols[num_sectors * i : num_sectors * i + num_sectors]
+                    ]
+                )
+        df = pd.concat(chunk_list, axis=1)
+
+    # Read all other matrices which aren't collapsed on rows
+    else:
+        with pd.read_csv(
+            file, usecols=usecols, header=None, chunksize=chunksize
+        ) as reader:
+            for i, chunk in enumerate(reader):
+                # Uses chunck length to separate out rows containing demand data
+                if i % 2 == 1 or is_satellite:
+                    chunk_list.append(chunk)
+        df = pd.concat(chunk_list)
+
+    # Set the column and row indices of the DataFrame
+    df.columns = column_index
+    df.index = row_index
+
+    # Convert the DataFrame to a SparseDataFrame to not store zero values
+    return df.astype(pd.SparseDtype("float", 0.0))
+
+
+def __read_gloria_metadata():
+    """
+    Read metadata from GLORIA Excel file and return various indices and lists.
+
+    Returns:
+    dict: A dictionary containing the following keys:
+        - 'Z_usecols': A list of column indices to read from Z CSV file.
+        - 'full_index': A MultiIndex for Z matrix with each region and sector.
+        - 'Y_column_index': An index for columns in Y matrix with region and final demand.
+        - 'VA_row_index': An index for VA with value added.
+        - 'num_sectors': The number of sectors.
+        - 'satellites_row_index': An index for satellites.
+        - 'satellites_row_units': The units for each satellite.
+    """
+    # Read metadata 
+    regions_df = pd.read_csv(PYMRIO_PATH["gloria_metadata"] /"Regions.tsv", sep='\t')
+    sectors_df = pd.read_csv(PYMRIO_PATH["gloria_metadata"] /"Sectors.tsv", sep='\t')
+    value_and_demand_df = pd.read_csv(PYMRIO_PATH["gloria_metadata"] /"Value_added_and_final_demand.tsv", sep='\t')
+    satellites_df = pd.read_csv(PYMRIO_PATH["gloria_metadata"] /"Satellites.tsv", sep='\t')
+    #valuations_df = pd.read_csv(PYMRIO_PATH["gloria_metadata"] /"Valuations.tsv", sep='\t')
+
+    # Store the number of items in each list
+    num_regions = len(regions_df.index)
+    num_sectors = len(sectors_df.index)
+    num_value_demand = len(value_and_demand_df.index)
+    num_satellites = len(satellites_df.index)
+
+    # Create a list of column indexes to read from Z CSV file
+    columns_to_use = [
+        s + r
+        for r in range(0, num_regions * 2 * num_sectors, 2 * num_sectors)
+        for s in range(num_sectors)
+    ]
+
+    # Create a MultiIndex for Z matrix with each region and sector
+    regions_row = [
+        regions_df["Region_acronyms"][reg]
+        for reg in range(num_regions)
+        for _ in range(num_sectors)
+    ]
+    sectors_row = [
+        sectors_df["Sector_names"][sec]
+        for _ in range(num_regions)
+        for sec in range(num_sectors)
+    ]
+    index = pd.MultiIndex.from_tuples(
+        list(zip(regions_row, sectors_row)), names=["region", "sector"]
+    )
+
+    # Create an index for columns in Y matrix with region and final demand
+    y_column_region = [
+        regions_df["Region_acronyms"][reg]
+        for reg in range(num_regions)
+        for _ in range(num_value_demand)
+    ]
+    y_column_demand = [
+        value_and_demand_df["Final_demand_names"][dem]
+        for _ in range(num_regions)
+        for dem in range(num_value_demand)
+    ]
+    Y_column_index = pd.MultiIndex.from_tuples(
+        list(zip(y_column_region, y_column_demand)), names=["region", "category"]
+    )
+
+    # Create an index for VA with value added
+    VA_row_index = list(value_and_demand_df["Final_demand_names"])
+
+    # Create an index for satellites
+    satellites_row_index = list(satellites_df["Sat_indicator"])
+    satellites_row_units = list(satellites_df["Sat_unit"])
+
+    # Return a dictionary containing various indices and lists
+    return {
+        "Z_usecols": columns_to_use,
+        "full_index": index,
+        "Y_column_index": Y_column_index,
+        "VA_row_index": VA_row_index,
+        "num_sectors": num_sectors,
+        "satellites_row_index": satellites_row_index,
+        "satellites_row_units": satellites_row_units,
+    }

@@ -312,8 +312,8 @@ def load(path, include_core=True, path_in_arc=""):
                             index_col=_index_col,
                             header=_header,
                             sep="\t",
-                        ),
-                    )
+                        ).astype(pd.SparseDtype("float", 0.0)), 
+                    ) # As this data contains a lot of zeros, using sparse type saves space while still using dataframe
         else:
             full_file_name = path / file_name
             logging.info("Load data from {}".format(full_file_name))
@@ -329,8 +329,8 @@ def load(path, include_core=True, path_in_arc=""):
                     key,
                     pd.read_csv(
                         full_file_name, index_col=_index_col, header=_header, sep="\t"
-                    ),
-                )
+                    ).astype(pd.SparseDtype("float", 0.0)), 
+                ) # As this data contains a lot of zeros, using sparse type saves space while still using dataframe
     return ret_system
 
 
