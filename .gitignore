@@ -18,6 +18,7 @@ Session.vim
 #*.gif
 #*.pyc
 #
+
 .~lock.*
 .tags
 .pyc
@@ -37,3 +38,6 @@ tags
 .coverage
 /htmlcov
 /**/htmlcov
+
+#No vertual environment stuff
+*.venv/
