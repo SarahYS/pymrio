@@ -11,6 +11,7 @@ import re
 import warnings
 import zipfile
 from collections import namedtuple
+from pandas.api.types import is_any_real_numeric_dtype
 
 import numpy as np
 import pandas as pd
@@ -1091,6 +1092,11 @@ def parse_wiod(path, version, year=None, names=("isic", "c_codes"), popvector=No
         wiot_ext = ".xlsb"
         year_correct_digit = str(year)
         end_character = 8
+    elif version == 20161:
+        wiot_ext = ".xlsx"
+        year_correct_digit = str(year)
+        end_character = 8
+        version = 2016
     wiot_start = "wiot"
 
     # determine which wiod file to be parsed
@@ -1658,7 +1664,8 @@ def __get_WIOD_env_extension(root_path, version, year, ll_co, para):
                     ParserWarning,
                 )
                 return None
-
+            
+            #is_any_real_numeric_dtype(df_env.index)
             if not df_env.index.is_numeric():
                 # upper case letter extensions gets parsed with multiindex, not
                 # quite sure why...
