@@ -2196,6 +2196,315 @@ def parse_oecd(path, year=None):
     return oecd
 
 
+def parse_new_oecd(path, year=None):
+    """Parse the 2023 updated OECD tables
+
+    This function works for the 2016, 2018, and 2021 releases.
+    The OECd webpage provides the data as csv files in zip compressed
+    archives. This function works with both, the compressed archives
+    and the unpacked csv files.
+
+    Note
+    ----
+
+    I) The original OECD ICIO tables provide some disaggregation of the Mexican
+    and Chinese tables for the interindustry flows. The pymrio parser
+    automatically aggregates these into Chinese And Mexican totals. Thus, the
+    MX1, MX2, ..  and CN1, CN2, ... entries are aggregated into MEX and CHN.
+
+    II) If a given storage folder contains both releases, the datafile
+    must be specified in the 'path' parameter.
+
+    II) Sectors are given with codes (e.g. 01T02, 53) which are mapped from
+    the OECD's metadata file (Country_Industry tab). Similarly the codes for demand items 
+    can be found in the metadata (Structure tab). 
+
+    Parameters
+    ----------
+    path: str or pathlib.Path
+        Either the full path to one specific OECD ICIO file
+        or the path to a storage folder with several OECD files.
+        In the later case, a specific year needs to be specified.
+
+    year: str or int, optional
+        Year to parse if 'path' is given as a folder.
+        If path points to a specific file, this parameter is not used.
+
+    Returns
+    -------
+    IOSystem
+
+    Raises
+    ------
+    ParserError
+        If the file to parse could not be definitely identified.
+    FileNotFoundError
+        If the specified data file could not be found.
+
+    """
+
+    path = os.path.abspath(os.path.normpath(str(path)))
+
+
+    # determine which oecd file to be parsed
+    if not os.path.isdir(path):
+        # 1. case - one file specified in path
+        oecd_file = path
+        path = os.path.split(oecd_file)[0]
+    else:
+        # 2. case: dir given - build oecd_file with the value given in year
+        if not year:
+            raise ParserError(
+                "No year specified "
+                "(either specify a specific file "
+                "or path and year)"
+            )
+
+        oecd_file_list = [
+            fl
+            for fl in os.listdir(path)
+            if (
+                os.path.splitext(fl)[-1] in [".csv", ".CSV", ".zip"]
+                and os.path.splitext(fl)[0]
+                in [str(year)+oo for oo in [".SML", ""]]
+            )
+        ]
+
+        if len(oecd_file_list) > 1:
+            unique_file_data = set([os.path.splitext(fl)[0] for fl in oecd_file_list])
+
+            if len(unique_file_data) > 1:
+                raise ParserError(
+                    "Multiple files for a given year "
+                    "found (specify a specific file in the "
+                    'parameter "path")'
+                )
+
+        elif len(oecd_file_list) == 0:
+            raise FileNotFoundError("No data file for the given year found")
+
+        oecd_file = os.path.join(path, oecd_file_list[0])
+
+    oecd_file_name = os.path.split(oecd_file)[1]
+
+    try:
+        years = re.findall(r"\d\d\d\d", oecd_file_name)
+        oecd_version = "v" + years[0]
+        oecd_year = years[1]
+        meta_desc = "OECD ICIO for {}".format(oecd_year)
+
+    except IndexError:
+        oecd_version = "n/a"
+        oecd_year = "n/a"
+        meta_desc = "OECD ICIO - year undefined"
+
+    meta_rec = MRIOMetaData(
+        location=path,
+        name="OECD-ICIO",
+        description=meta_desc,
+        version=oecd_version,
+        system="IxI",  # base don the readme
+    )
+
+    oecd_raw = pd.read_csv(oecd_file, sep=",", index_col=0).fillna(0)
+    meta_rec._add_fileio("OECD data parsed from {}".format(oecd_file))
+
+    mon_unit = "Million USD"
+
+    oecd_totals_col = ["TOTAL"]
+    oecd_totals_row = ["OUT", "OUTPUT"]
+
+    oecd_raw.drop(oecd_totals_col, axis=1, errors="ignore", inplace=True)
+    oecd_raw.drop(oecd_totals_row, axis=0, errors="ignore", inplace=True)
+
+    # Important - these must not match any country or industry name
+    factor_input = oecd_raw.filter(regex="VALU|TAX", axis=0)
+    final_demand = oecd_raw.filter(
+        regex="HFCE|NPISH|NPS|GGFC|GFCF|INVNT|INV|DIRP|DPABR|FD|P33|DISC", axis=1
+    )
+
+    Z = oecd_raw.loc[
+        oecd_raw.index.difference(factor_input.index),
+        oecd_raw.columns.difference(final_demand.columns),
+    ]
+    F_factor_input = factor_input.loc[
+        :, factor_input.columns.difference(final_demand.columns)
+    ]
+    F_Y_factor_input = factor_input.loc[:, final_demand.columns]
+    Y = final_demand.loc[final_demand.index.difference(F_factor_input.index), :]
+
+    Z_index = pd.MultiIndex.from_tuples(tuple(ll) for ll in Z.index.str.split("_"))
+    Z_columns = Z_index.copy()
+    Z_index.names = IDX_NAMES["Z_row"]
+
+
+    # Make names human readable not codes
+    # Hard coded in May 2023 
+    # Do as excel solution
+    sectors = ["Agriculture, hunting, forestry",
+                      "Fishing and aquaculture",
+                       "Mining and quarrying, energy producing products",
+                        "Mining and quarrying, non-energy producing products",
+                        "Mining support service activities",
+                        "Food products, beverages and tobacco",
+                        "Textiles, textile products, leather and footwear",
+                        "Wood and products of wood and cork",
+                        "Paper products and printing",
+                        "Coke and refined petroleum products",
+                        "Chemical and chemical products",
+                        "Pharmaceuticals, medicinal chemical and botanical products",
+                        "Rubber and plastics products",
+                        "Other non-metallic mineral products",
+                        "Basic metals",
+                        "Fabricated metal products",
+                        "Computer, electronic and optical equipment",
+                        "Electrical equipment",
+                        "Machinery and equipment, nec",
+                        "Motor vehicles, trailers and semi-trailers",
+                        "Other transport equipment",
+                        "Manufacturing nec; repair and installation of machinery and equipment",
+                        "Electricity, gas, steam and air conditioning supply",
+                        "Water supply; sewerage, waste management and remediation activities",
+                        "Construction",
+                        "Wholesale and retail trade; repair of motor vehicles",
+                        "Land transport and transport via pipelines",
+                        "Water transport",
+                        "Air transport",
+                        "Warehousing and support activities for transportation",
+                        "Postal and courier activities",
+                        "Accommodation and food service activities",
+                        "Publishing, audiovisual and broadcasting activities",
+                        "Telecommunications",
+                        "IT and other information services",
+                        "Financial and insurance activities",
+                        "Real estate activities",
+                        "Professional, scientific and technical activities",
+                        "Administrative and support services",
+                        "Public administration and defence; compulsory social security",
+                        "Education",
+                        "Human health and social work activities",
+                        "Arts, entertainment and recreation",
+                        "Other service activities",
+                        "Activities of households as employers; undifferentiated goods- and services-producing activities of households for own use"
+                       ] 
+    
+    Z_columns = Z_index.copy()
+    Z_columns = Z_columns.set_levels(sectors, level=1)
+    Z_index.names = IDX_NAMES["Z_row"]
+    Z_columns.names = IDX_NAMES["Z_col"]
+    Z_index = Z_index.set_levels(sectors, level=1)
+
+    Z.index = Z_index
+
+    Z.columns = Z_columns
+
+    _midx = []
+    for orig_idx in Y.columns:
+        entries = orig_idx.split("_")
+        if len(entries) == 1:
+            # Capturing the discrepancy column
+            entries = ["ALL", entries[0]]
+        if entries[1] in Z.index.get_level_values("region").unique():
+            # Fixing the reversed indexing in the 2016 ICIO version
+            entries = [entries[1], entries[0]]
+        _midx.append(tuple(entries))
+    Y.columns = pd.MultiIndex.from_tuples(_midx)
+    Y.columns.names = IDX_NAMES["Y_col2"]
+
+#renaming categories to be human readable
+#Hard coded in May 2023 - found in README, structure tab
+    categories = ["Household Final Consumption Expenditure",
+              "Non-Profit Institutions Serving Households",
+              "General Government Final Consumption",
+              "Gross Fixed Capital Formation",
+              "Changes in Inventories and Valuables",
+              "Direct purchases abroad by residents"] 
+
+
+
+    Y.index = Z.index
+    Y.columns = Y.columns.set_levels(categories, level=1)
+    F_factor_input.columns = Z.columns
+    F_factor_input.index.names = IDX_NAMES["VA_row_single"]
+    F_Y_factor_input.columns = Y.columns
+    F_Y_factor_input.index = F_factor_input.index
+    F_Y_factor_input.columns = F_Y_factor_input.columns.set_levels(sectors, level=1)
+
+    # Aggregation of CN and MX subregions
+    core_co_names = Z.columns.get_level_values("region").unique()
+
+    agg_corr = dict(
+        CHN=[a for a in core_co_names if re.match(r"CN\d", a)],
+        MEX=[a for a in core_co_names if re.match(r"MX\d", a)],
+    )
+
+    for co_name, agg_list in agg_corr.items():
+        if (co_name not in core_co_names) or (len(agg_list) == 0):
+            continue
+
+        # DEBUG note for all below: have to assign with np values due to
+        # alignment issues bug in pandas,
+        # see https://github.com/pandas-dev/pandas/issues/10440
+
+        # aggregate rows
+        Z.loc[co_name, :] = (
+            Z.loc[co_name, :] + Z.loc[agg_list, :].groupby(level="sector", axis=0).sum()
+        ).values
+        Z = Z.drop(agg_list, axis=0)
+        Y.loc[co_name, :] = (
+            Y.loc[co_name, :] + Y.loc[agg_list, :].groupby(level="sector", axis=0).sum()
+        ).values
+        Y = Y.drop(agg_list, axis=0)
+
+        # aggregate columns
+        Z.loc[:, co_name] = (
+            Z.loc[:, co_name] + Z.loc[:, agg_list].groupby(level="sector", axis=1).sum()
+        ).values
+        Z = Z.drop(agg_list, axis=1)
+
+        F_factor_input.loc[:, co_name] = (
+            F_factor_input.loc[:, co_name]
+            + F_factor_input.loc[:, agg_list].groupby(level="sector", axis=1).sum()
+        ).values
+        F_factor_input = F_factor_input.drop(agg_list, axis=1)
+
+    # unit df generation at the end to have consistent index
+    unit = pd.DataFrame(index=Z.index, data=mon_unit, columns=IDX_NAMES["unit"])
+    F_unit = pd.DataFrame(
+        index=F_factor_input.index, data=mon_unit, columns=IDX_NAMES["unit"]
+    )
+    # factor inputs less subsidies for Z 
+    tls = F_factor_input.iloc[:-1]
+    sums = tls.sum(axis = 0)
+    F_factor_input[:1] = sums
+    F_factor_input.rename(index={'AUS_TAXSUB': 'tls'}, inplace=True)
+    F_Z = F_factor_input.iloc[[0, -1]]
+    
+
+    # factor inputs for Y
+    tls_y_raw = final_demand.iloc[-68:].copy()
+    sums_y = tls_y_raw.sum(axis = 0)
+    F_Y_factor_input[:1] = sums_y
+    F_Y_factor_input.rename(index={'AUS_TAXSUB': 'tls'}, inplace=True)
+    F_Y = F_Y_factor_input.iloc[[0, -1]]
+
+
+    oecd = IOSystem(
+        Z=Z,
+        Y=Y,
+        unit=unit,
+        meta=meta_rec,
+        factor_inputs={
+            "name": "factor_inputs",
+            "unit": F_unit,
+            "F": F_Z,
+            "F_Y": F_Y,
+        },
+    )
+
+    return oecd
+
+
 def __get_oecd_env_extension(root_path, version_year, io_table_year):
 
     """Parse the OECD CO2 embodied in production data

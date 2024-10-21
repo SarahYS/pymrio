@@ -20,6 +20,7 @@ PYMRIO_PATH = {
     "exio2_ixi": Path(__ROOT / "../mrio_models/exio2_ixi").absolute(),
     "exio3_pxp": Path(__ROOT / "../mrio_models/exio3_pxp").absolute(),
     "exio3_ixi": Path(__ROOT / "../mrio_models/exio3_ixi").absolute(),
+    "oecd": Path(__ROOT / "../mrio_models/oecd").absolute(),
 }
 
 # generic names (needed for the aggregation  if no names are given)
