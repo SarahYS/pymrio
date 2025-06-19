@@ -972,20 +972,20 @@ def parse_figaro(path, year=None):
    
 
     #initiatie extension dataframe with lable(in codes - get translated further down)
-    F_CO2_footprint = pd.DataFrame(0,index=Y_codes.columns,columns=Z_codes.columns)
+    #F_CO2_footprint = pd.DataFrame(0.0, index=Y_codes.columns, columns=Z_codes.columns)
     
     #make matrix       
-    for row in df_co2.itertuples():
-        F_CO2_footprint.loc[(row.counterpart_area, row.sto),(row.ref_area ,row.industry)] = row.obs_value  
+    #for row in df_co2.itertuples():
+    #    F_CO2_footprint.loc[(row.counterpart_area, row.sto),(row.ref_area ,row.industry)] = row.obs_value  
     
-    F_CO2_footprint.index = Y.columns
-    F_CO2_footprint.columns = Z.columns
+    #F_CO2_footprint.index = Y.columns
+    #F_CO2_footprint.columns = Z.columns
     
-    Fhh_CO2_footprint = df_co2_HH.obs_value
-    Fhh_CO2_footprint.index = df_co2_HH.ref_area
-    Fhh_CO2_footprint = Fhh_CO2_footprint.to_frame()
-    Fhh_CO2_footprint.columns.name = 'CO2 footprint'
-    footprints = [F_CO2_footprint,Fhh_CO2_footprint]
+    #Fhh_CO2_footprint = df_co2_HH.obs_value
+    #Fhh_CO2_footprint.index = df_co2_HH.ref_area
+    #Fhh_CO2_footprint = Fhh_CO2_footprint.to_frame()
+    #Fhh_CO2_footprint.columns.name = 'CO2 footprint'
+    #footprints = [F_CO2_footprint,Fhh_CO2_footprint]
 
     figaro = IOSystem(
         Z=Z,
@@ -1000,7 +1000,7 @@ def parse_figaro(path, year=None):
         },          
     )
 
-    return figaro, footprints 
+    return figaro #, footprints 
 
 
 def parse_wiod(path, version, year=None, names=("isic", "c_codes"), popvector=None):
