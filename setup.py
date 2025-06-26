@@ -21,14 +21,13 @@ setup(
     },
     # This some needs to be here and in environment.yml (for conda)
     install_requires=[
-        "pandas >= 1.0",
+        "pandas >= 2.2.3",
         "numpy >= 1.20",
-        "matplotlib >= 2.0.0",
-        "requests >= 2.18",
-        "xlrd > 1.1.0 ",
-        "openpyxl >= 3.0.6, < 3.1.1",
-        # openpyxl 3.1.1 has a bug that breaks the tests, issue is close, should be fine next release
-        "docutils >= 0.14",
+        "matplotlib >= 3.10.0",
+        "requests >= 2.32",
+        "xlrd > 2.0.1 ",
+        "openpyxl>=3.1.5",
+        "docutils >= 0.21",
     ],
     classifiers=[
         "Programming Language :: Python :: 3.8",
