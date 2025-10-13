@@ -24,11 +24,11 @@ setup(
         "pandas>=2.2.3",
         "numpy >= 1.20",
         "matplotlib >= 2.0.0",
-        "requests >= 2.18",
-        "xlrd > 1.1.0 ",
+        "requests >= 2.32",
+        "xlrd > 2.0.1 ",
         "openpyxl>=3.1.5",
         # openpyxl 3.1.1 has a bug that breaks the tests, issue is close, should be fine next release
-        "docutils >= 0.14",
+        "docutils >= 0.21",
     ],
     classifiers=[
         "Programming Language :: Python :: 3.8",
